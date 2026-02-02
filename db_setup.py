@@ -1,51 +1,30 @@
 import sqlite3
 
-def init_db(db_path='expert_alpha_v3.db'):
+def setup_database(db_path='expert_alpha_v3.db'):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-
-    print(f"🛠️ DB 테이블 최적화 및 생성 중... ({db_path})")
-
-    # 1. 리포트 저장 테이블 (reports)
+    
+    # 기존 테이블 삭제 (깔끔하게 새로 시작)
+    cur.execute("DROP TABLE IF EXISTS reports")
+    
+    # 테이블 생성 (분석에 필요한 모든 컬럼 배치)
     cur.execute('''
         CREATE TABLE IF NOT EXISTS reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
+            title TEXT,
             expert_name TEXT,
             source TEXT,
             report_date TEXT,
             stock_code TEXT,
             stock_name TEXT,
-            target_price INTEGER,
+            target_price INTEGER DEFAULT 0,
             rating TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-
-    # 2. 주가 및 종목 정보 테이블 (stocks)
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS stocks (
-            stock_code TEXT PRIMARY KEY,
-            stock_name TEXT,
-            current_price INTEGER,
-            last_updated TEXT
-        )
-    ''')
-
-    # 3. 전문가 성적 기록 테이블 (history)
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            expert_name TEXT,
-            avg_return REAL,
-            hit_rate REAL,
-            record_date TEXT
-        )
-    ''')
-
     conn.commit()
     conn.close()
-    print("✅ 모든 테이블 인프라 구축 완료 (reports, stocks, history)")
+    print("✅ DB 테이블 구조 재설정 완료!")
 
 if __name__ == "__main__":
-    init_db()
+    setup_database()
