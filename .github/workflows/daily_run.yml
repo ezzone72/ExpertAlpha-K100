@@ -1,9 +1,9 @@
-name: ExpertAlpha Data Factory
+name: ExpertAlpha Factory
 
 on:
-  workflow_dispatch:  # 수동 실행
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # 매일 자정 자동 실행
+    - cron: '0 0 * * *'
 
 jobs:
   build:
@@ -28,7 +28,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # 💡 여기서 v4 파일을 인식해서 올리도록 설정했습니다.
-          git add expert_alpha_v4.db 
-          git commit -m "🚀 [v4.0] 정밀 리포트 데이터 업데이트" || echo "No changes to commit"
+          # 모든 DB 파일을 강제로 다 챙겨서 올립니다.
+          git add *.db 
+          git commit -m "🚀 [Final] 인간 지표 데이터 적재 완료" || echo "No changes to commit"
           git push
