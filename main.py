@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 # 기존 소장님 시스템 모듈 임포트
-import database
+import db_setup as database
 from scrapers.naver_scraper import NaverScraper
 from scrapers.hankyung_scraper import HankyungScraper
 from analysis.history_manager import HistoryManager
