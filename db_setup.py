@@ -1,15 +1,11 @@
 import sqlite3
 
-def init_db(db_path='expert_alpha_v3.db'): # 함수 이름을 main.py에 맞춰 init_db로 변경
+def init_db(db_path='expert_alpha_v3.db'):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    
-    # 기존 테이블 삭제 (깔끔하게 새로 시작)
-    cur.execute("DROP TABLE IF EXISTS reports")
-    
-    # 테이블 생성 (분석에 필요한 모든 컬럼 배치)
+    cur.execute("DROP TABLE IF EXISTS reports") # 기존 꼬인 테이블 삭제
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS reports (
+        CREATE TABLE reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
             expert_name TEXT,
@@ -24,7 +20,4 @@ def init_db(db_path='expert_alpha_v3.db'): # 함수 이름을 main.py에 맞춰 
     ''')
     conn.commit()
     conn.close()
-    print("✅ DB 테이블 구조 재설정 및 초기화 완료!")
-
-if __name__ == "__main__":
-    init_db()
+    print("✅ DB 테이블 정밀 리셋 완료!")
