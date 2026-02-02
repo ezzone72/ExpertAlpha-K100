@@ -70,11 +70,11 @@ def main():
     
     # 네이버 수집 (대량 수집을 위해 pages=100 설정)
     naver = NaverScraper(db_path=db_path)
-    naver.fetch_data(pages=100)
+    naver.fetch_data(pages=50)
 
     # 한경 수집 (대량 수집을 위해 pages=100 설정)
     hankyung = HankyungScraper(db_path=db_path)
-    hankyung.fetch_data(pages=100)
+    hankyung.fetch_data(pages=50)
 
     # [4순위] 전문가 성적 기록 및 분석
     print("📈 4단계: 전문가 성적 계산 및 히스토리 기록 중...")
