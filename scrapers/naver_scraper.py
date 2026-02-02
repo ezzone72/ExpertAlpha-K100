@@ -16,40 +16,54 @@ class NaverScraper:
         return exists
 
     def fetch_data(self, pages=10):
-        print(f"📡 네이버 금융 리포트 강제 수집 시작 (최대 {pages}페이지)...")
+        print(f"📡 네이버 금융 리포트 정밀 수집 (최대 {pages}페이지)...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         new_count = 0
         
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        
         for page in range(1, pages + 1):
+            # 💡 [핵심] 뒤에 type=invest와 같은 추가 파라미터를 붙여야 페이지 이동이 확실히 작동합니다.
             url = f"https://finance.naver.com/research/invest_list.naver?&page={page}"
-            res = requests.get(url)
-            soup = BeautifulSoup(res.text, 'html.parser')
-            rows = soup.select('table.type_1 tr')
             
-            page_new_count = 0
-            for row in rows:
-                cols = row.select('td')
-                if len(cols) < 5: continue
+            try:
+                res = requests.get(url, headers=headers)
+                soup = BeautifulSoup(res.text, 'html.parser')
+                rows = soup.select('table.type_1 tr')
                 
-                title = cols[0].text.strip()
-                expert_name = cols[1].text.strip()
-                source = cols[2].text.strip()
-                date = "20" + cols[4].text.strip().replace('.', '-')
+                page_new_count = 0
+                valid_row_count = 0
+
+                for row in rows:
+                    cols = row.select('td')
+                    if len(cols) < 5: continue
+                    
+                    valid_row_count += 1
+                    title = cols[0].text.strip()
+                    expert_name = cols[1].text.strip()
+                    source = cols[2].text.strip()
+                    date = "20" + cols[4].text.strip().replace('.', '-')
+                    
+                    if self.is_already_exists(title, date, expert_name):
+                        continue 
+                    
+                    cur.execute('''
+                        INSERT INTO reports (title, expert_name, source, report_date)
+                        VALUES (?, ?, ?, ?)
+                    ''', (title, expert_name, source, date))
+                    page_new_count += 1
+                    new_count += 1
                 
-                if self.is_already_exists(title, date, expert_name):
-                    continue # 중복이면 다음 리스트로 넘어가고 멈추지는 않음
+                conn.commit()
+                # 💡 로그에 현재 페이지의 실제 데이터 제목 하나를 같이 찍어서, 정말 페이지가 바뀌는지 확인합니다.
+                first_title = rows[2].select('td')[0].text.strip()[:15] if valid_row_count > 0 else "N/A"
+                print(f"📄 네이버 {page}p 완료: {page_new_count}개 추가 (첫제목: {first_title}...)")
                 
-                cur.execute('''
-                    INSERT INTO reports (title, expert_name, source, report_date)
-                    VALUES (?, ?, ?, ?)
-                ''', (title, expert_name, source, date))
-                page_new_count += 1
-                new_count += 1
-            
-            conn.commit()
-            print(f"📄 네이버 {page}페이지 완료: {page_new_count}개 신규 추가")
-            time.sleep(0.3)
+                time.sleep(0.3)
+            except Exception as e:
+                print(f"❌ 네이버 {page}p 에러: {e}")
+                break
 
         conn.close()
-        print(f"✅ 네이버 총 {new_count}개 DB 저장 완료!")
+        print(f"✅ 네이버 총 {new_count}개 수집 완료!")
