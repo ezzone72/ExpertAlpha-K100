@@ -1,15 +1,12 @@
-import sqlite3
-import requests
+import sqlite3, requests, re, time
 from bs4 import BeautifulSoup
-import time
-import re
 
 class NaverScraper:
     def __init__(self, db_path='expert_alpha_v3.db'):
         self.db_path = db_path
 
-    def fetch_data(self, pages=10):
-        print(f"📡 네이버 금융 리포트 [정밀 분석형] 수집 시작...")
+    def fetch_data(self, pages=50):
+        print(f"📡 네이버 금융 리포트 [실전 분석형] 수집 시작...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         new_count = 0
@@ -20,51 +17,46 @@ class NaverScraper:
             try:
                 res = requests.get(url, headers=headers)
                 soup = BeautifulSoup(res.text, 'html.parser')
-                # 데이터가 있는 테이블 행(tr)
                 rows = soup.select('table.type_1 tr')
                 
                 for row in rows:
                     cols = row.select('td')
                     if len(cols) < 5: continue
                     
-                    # 1. 종목명 및 종목코드 추출 (제목 옆의 링크에서 추출)
-                    title_cell = cols[0]
-                    title = title_cell.text.strip()
+                    # 1. 제목 및 종목코드 추출
+                    title_a = cols[0].select_one('a')
+                    title = title_a.text.strip() if title_a else cols[0].text.strip()
                     
-                    # 상세 페이지 링크나 종목 연결 링크가 있는지 확인
-                    link_tag = title_cell.select_one('a')
+                    # 💡 종목코드 추출 (링크 내 itemCode 파라미터 활용)
                     stock_code = ""
-                    if link_tag and 'href' in link_tag.attrs:
-                        # href에서 itemCode=000000 형태를 추출
-                        code_match = re.search(r'itemCode=(\d{6})', link_tag['href'])
-                        if code_match:
-                            stock_code = code_match.group(1)
+                    if title_a and 'href' in title_a.attrs:
+                        code_search = re.search(r'itemCode=(\d{6})', title_a['href'])
+                        stock_code = code_search.group(1) if code_search else ""
 
-                    # 2. 전문가, 증권사, 날짜
+                    # 2. 목표가 추출 (제목에서 '00,000원' 형태를 찾아냄)
+                    target_price = 0
+                    price_match = re.search(r'(\d{1,3}(,\d{3})+)', title)
+                    if price_match:
+                        target_price = int(price_match.group(1).replace(',', ''))
+
+                    # 3. 전문가, 증권사, 날짜 (날짜 버그 완전 박멸)
                     expert = cols[1].text.strip()
                     source = cols[2].text.strip()
                     raw_date = cols[4].text.strip()
-                    date = "20" + raw_date.replace('.', '-') if len(raw_date) == 8 else raw_date.replace('.', '-')
+                    date = f"20{raw_date.replace('.', '-')}" if len(raw_date) == 8 else raw_date.replace('.', '-')
 
-                    # 3. 목표주가 (한경은 표에 있지만 네이버는 제목에 섞여 있는 경우가 많음)
-                    # 우선은 기본 컬럼 위주로 수집하되, 종목코드를 확보하는 것이 급선무입니다.
-                    
-                    # 중복 체크
-                    cur.execute("SELECT id FROM reports WHERE title=? AND report_date=? AND expert_name=?", (title, date, expert))
+                    # 4. 중복 체크 후 저장
+                    cur.execute("SELECT id FROM reports WHERE title=? AND report_date=?", (title, date))
                     if cur.fetchone(): continue
                     
-                    # 4. DB 저장 (종목코드 포함)
                     cur.execute('''
-                        INSERT INTO reports (title, expert_name, source, report_date, stock_code) 
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (title, expert, source, date, stock_code))
+                        INSERT INTO reports (title, expert_name, source, report_date, stock_code, target_price) 
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (title, expert, source, date, stock_code, target_price))
                     new_count += 1
                 
                 conn.commit()
-                print(f"📄 네이버 {page}p 완료: {new_count}개 누적 저장 (최근코드: {stock_code})")
+                print(f"📄 네이버 {page}p: {new_count}개 누적 (Code: {stock_code}, Price: {target_price})")
                 time.sleep(0.3)
-            except Exception as e:
-                print(f"❌ 에러: {e}")
-                break
-        
+            except: break
         conn.close()
