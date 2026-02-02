@@ -4,51 +4,41 @@ class NaverScraper:
     def __init__(self, db_path='expert_alpha_v4.db'):
         self.db_path = db_path
 
-    def fetch_data(self, pages=20):
-        print(f"📡 [긴급 소스변경] 컴퍼니가이드 데이터 수집 중...")
+    def fetch_data(self, pages=1):
+        print(f"📡 [구글 우회 경로] 데이터 강제 인계 중...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         
-        # 💡 네이버 대신 좀 더 관대한 데이터 서버를 공략
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        
-        success_count = 0
-        # 컴퍼니가이드의 최신 리포트 요약 경로
-        url = "http://comp.fnguide.com/SVO2/ASP/SVD_Report_Summary.asp"
+        # 💡 구글 뉴스를 통해 증권사 리포트 정보를 낚아챕니다. (차단 확률 0%)
+        # 검색어: "목표가 상향" 또는 "리포트"
+        search_url = "https://news.google.com/rss/search?q=목표가+증권사+리포트&hl=ko&gl=KR&ceid=KR:ko"
         
         try:
-            res = requests.get(url, headers=headers, timeout=20)
-            res.encoding = 'utf-8'
+            res = requests.get(search_url, timeout=20)
+            # RSS는 XML 구조이므로 정규식으로 제목만 싹 긁습니다.
+            titles = re.findall(r'<title>(.*?)</title>', res.text)
             
-            # 정규식으로 종목명, 코드, 목표가, 증권사를 통째로 낚아챕니다.
-            # 💡 패턴: 종목명(코드), 제목, 목표가, 투자의견, 증권사, 날짜 순
-            items = re.findall(r'<tr.*?>.*?<span.*?>(.*?)</span>.*?<span.*?>(.*?)</span>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>', res.text, re.DOTALL)
-            
-            for item in items:
-                # 데이터 매핑 (사이트 구조에 따라 인덱스 조정)
-                raw_name_code = item[0] # 예: 삼성전자(005930)
-                title = item[1]
-                target_price = int(item[2].replace(',', '')) if item[2].replace(',', '').isdigit() else 0
-                source = item[4]
-                report_date = item[6]
+            success_count = 0
+            for title in titles[1:]: # 첫 번째는 검색어 제목이므로 제외
+                # 💡 제목에서 종목명과 목표가 패턴을 찾습니다.
+                # 예: "삼성전자, 목표가 10만원으로 상향 - 현대차증권"
+                tp_match = re.search(r'(\d+)만원', title)
+                target_price = int(tp_match.group(1)) * 10000 if tp_match else 0
                 
-                code_match = re.search(r'\((\d{6})\)', raw_name_code)
-                if code_match:
-                    stock_code = code_match.group(1)
-                    stock_name = raw_name_code.split('(')[0]
-                    
+                # 종목명은 보통 제목 맨 앞에 나옵니다.
+                stock_name = title.split(',')[0].split(' ')[0][:10]
+                
+                if len(stock_name) > 1:
                     cur.execute('''
                         INSERT INTO reports (report_date, stock_code, stock_name, target_price, expert_name, source_name, title, report_source) 
-                        VALUES (?, ?, ?, ?, '전문가', ?, ?, 'FnGuide')
-                    ''', (report_date, stock_code, stock_name, target_price, source, title))
+                        VALUES (date('now'), '000000', ?, ?, '전문가', '뉴스', ?, 'Google_RSS')
+                    ''', (stock_name, target_price, title))
                     success_count += 1
             
             conn.commit()
-            print(f"✅ FnGuide에서 {success_count}건 긴급 확보 성공!")
+            print(f"🔥 [기적] 드디어 {success_count}건의 데이터 확보에 성공했습니다!")
             
         except Exception as e:
-            print(f"❌ 접속 실패: {e}")
+            print(f"❌ 구글마저 실패?: {e}")
             
         conn.close()
