@@ -1,48 +1,35 @@
-name: ExpertAlpha-K100 Daily Scraper
+name: Daily Expert Alpha Update
 
 on:
   schedule:
-    # 한국 시간 밤 11:30 (UTC 14:30)
-    - cron: '30 14 * * *'
+    - cron: '30 14 * * *' # 매일 한국시간 밤 11시 30분
   workflow_dispatch: # 수동 실행 버튼
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests beautifulsoup4 pandas yfinance pytz schedule
+      - name: Install dependencies
+        run: |
+          pip install pandas requests beautifulsoup4 pytz yfinance
 
-    - name: Run Main Script
-      run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
-        python main.py --update-prices
+      - name: Run Scraper
+        run: python main.py
 
-    - name: Commit and Push DB change
-      env:
-        # 소장님이 만드신 시크릿 이름 그대로 적용합니다
-        TOKEN: ${{ secrets.gh_ffnm_key }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        if [ -f expert_alpha_v3.db ]; then
+      # 🔥 [이 부분이 핵심!] 변경된 DB 파일을 저장소에 강제로 밀어넣기
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
           git add expert_alpha_v3.db
-          git commit -m "📈 Daily DB Update: $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          
-          # 토큰을 주소에 태워서 문을 강제로 엽니다
-          git push https://x-access-token:${TOKEN}@github.com/ezzone72/ExpertAlpha-K100.git HEAD:main
-        else
-          echo "DB file not found, skipping push."
-        fi
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update DB with latest reports" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
