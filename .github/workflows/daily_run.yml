@@ -1,9 +1,9 @@
-name: Daily Expert Alpha Update
+name: ExpertAlpha Data Factory
 
 on:
+  workflow_dispatch:  # 수동 실행
   schedule:
-    - cron: '30 14 * * *' # 매일 한국시간 밤 11시 30분
-  workflow_dispatch: # 수동 실행 버튼
+    - cron: '0 0 * * *' # 매일 자정 자동 실행
 
 jobs:
   build:
@@ -19,17 +19,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas requests beautifulsoup4 pytz yfinance
+          pip install requests beautifulsoup4 pandas
 
-      - name: Run Scraper
+      - name: Run Factory
         run: python main.py
 
-      # 🔥 [이 부분이 핵심!] 변경된 DB 파일을 저장소에 강제로 밀어넣기
-      - name: Commit and Push changes
+      - name: Commit and Push DB
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git add expert_alpha_v3.db
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update DB with latest reports" && git push)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          # 💡 여기서 v4 파일을 인식해서 올리도록 설정했습니다.
+          git add expert_alpha_v4.db 
+          git commit -m "🚀 [v4.0] 정밀 리포트 데이터 업데이트" || echo "No changes to commit"
+          git push
