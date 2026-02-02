@@ -6,7 +6,7 @@ class NaverScraper:
         self.db_path = db_path
 
     def fetch_data(self, pages=10):
-        print(f"📡 네이버 정밀 수집 시작...")
+        print(f"📡 네이버 정밀 수집 시작 (칸 맞춤 버전)...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         new_count = 0
@@ -23,7 +23,6 @@ class NaverScraper:
                     cols = row.select('td')
                     if len(cols) < 5: continue
                     
-                    # 제목 및 종목코드
                     title_a = cols[0].select_one('a')
                     title = title_a.text.strip() if title_a else cols[0].text.strip()
                     
@@ -32,19 +31,18 @@ class NaverScraper:
                         code_search = re.search(r'itemCode=(\d{6})', title_a['href'])
                         stock_code = code_search.group(1) if code_search else ""
 
-                    # 전문가, 증권사, 날짜 (버그 수정: 24.12.15 -> 2024-12-15)
                     expert = cols[1].text.strip()
                     source = cols[2].text.strip()
                     raw_date = cols[4].text.strip()
+                    # 날짜 형식 보정 (24.12.15 -> 2024-12-15)
                     date = f"20{raw_date.replace('.', '-')}" if len(raw_date.strip()) == 8 else raw_date.replace('.', '-')
 
-                    # 목표가 (제목에서 숫자 추출)
                     target_price = 0
                     price_match = re.search(r'(\d{1,3}(,\d{3})+)', title)
                     if price_match:
                         target_price = int(price_match.group(1).replace(',', ''))
 
-                    # DB 저장 (순서 엄수: title, expert, source, date, code, price)
+                    # 🔥 [핵심 수정] INSERT 할 컬럼명을 명시적으로 지정합니다.
                     cur.execute('''
                         INSERT INTO reports (title, expert_name, source, report_date, stock_code, target_price) 
                         VALUES (?, ?, ?, ?, ?, ?)
@@ -52,7 +50,7 @@ class NaverScraper:
                     new_count += 1
                 
                 conn.commit()
-                print(f"📄 네이버 {page}p: {new_count}개 저장 (최근: {stock_code})")
+                print(f"📄 네이버 {page}p 완료")
                 time.sleep(0.3)
             except Exception as e:
                 print(f"❌ 에러: {e}")
