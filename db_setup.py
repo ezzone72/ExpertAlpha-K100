@@ -1,6 +1,6 @@
 import sqlite3
 
-def setup_database(db_path='expert_alpha_v3.db'):
+def init_db(db_path='expert_alpha_v3.db'): # 함수 이름을 main.py에 맞춰 init_db로 변경
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     
@@ -24,7 +24,7 @@ def setup_database(db_path='expert_alpha_v3.db'):
     ''')
     conn.commit()
     conn.close()
-    print("✅ DB 테이블 구조 재설정 완료!")
+    print("✅ DB 테이블 구조 재설정 및 초기화 완료!")
 
 if __name__ == "__main__":
-    setup_database()
+    init_db()
