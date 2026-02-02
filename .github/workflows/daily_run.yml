@@ -2,9 +2,9 @@ name: ExpertAlpha-K100 Daily Scraper
 
 on:
   schedule:
-    # 한국 시간 밤 11:30분 (UTC 기준은 14:30)
+    # 한국 시간 밤 11:30 (UTC 14:30)
     - cron: '30 14 * * *'
-  workflow_dispatch: # 수동으로도 실행 가능하게 버튼 생성
+  workflow_dispatch: # 직접 실행 버튼을 만들기 위한 옵션
 
 jobs:
   build:
@@ -26,12 +26,22 @@ jobs:
 
     - name: Run Main Script
       run: |
+        # 밤 11:30에 돌아갈 때 주가 업데이트까지 포함해서 정밀 수집
         python main.py --update-prices
 
     - name: Commit and Push DB change
+      env:
+        # 시크릿에 저장하신 이름을 여기서 불러옵니다
+        TOKEN: ${{ secrets.MY_GH_TOKEN }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+        # 데이터베이스 파일의 변경사항을 추적
         git add expert_alpha_v3.db
+        
+        # 변경사항이 있을 때만 커밋 (없으면 통과)
         git commit -m "📈 Daily DB Update: $(date +'%Y-%m-%d')" || echo "No changes to commit"
-        git push
+        
+        # 토큰을 사용하여 본인 저장소에 강제 푸시
+        git push https://x-access-token:${TOKEN}@github.com/ezzone72/ExpertAlpha-K100.git
