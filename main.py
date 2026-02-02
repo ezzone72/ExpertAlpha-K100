@@ -1,20 +1,15 @@
 import db_setup
-from scrapers.hankyung_scraper import HankyungScraper
 from scrapers.naver_scraper import NaverScraper
 
 def main():
     db_path = 'expert_alpha_v4.db'
-    db_setup.init_db(db_path) # 새로 깨끗하게 시작
+    db_setup.init_db(db_path)
     
-    # 1. 한경 컨센서스 수집 (50페이지)
-    hk = HankyungScraper(db_path)
-    hk.fetch_data(pages=50)
-    
-    # 2. 네이버 종목분석 수집 (30페이지)
+    # 지금은 한경 대신 확실한 네이버 종목분석만 팹니다.
     nv = NaverScraper(db_path)
-    nv.fetch_data(pages=30)
+    nv.fetch_data(pages=50) # 50페이지 긁으면 수백 개 나옵니다.
     
-    print("🏁 [종합] 한경과 네이버에서 모든 원재료를 확보했습니다.")
+    print("🏁 [긴급] 네이버 수집 공정 완료.")
 
 if __name__ == "__main__":
     main()
