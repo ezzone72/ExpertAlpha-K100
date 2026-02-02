@@ -1,50 +1,54 @@
-import sqlite3, requests, time
+import sqlite3, requests, re, time
 
 class NaverScraper:
     def __init__(self, db_path='expert_alpha_v4.db'):
         self.db_path = db_path
 
-    def fetch_data(self, pages=50):
-        print(f"📡 [네이버 API] {pages}페이지 뒷문 타격 중...")
+    def fetch_data(self, pages=20):
+        print(f"📡 [긴급 소스변경] 컴퍼니가이드 데이터 수집 중...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         
-        # 💡 브라우저 헤더를 더 정교하게 세팅
+        # 💡 네이버 대신 좀 더 관대한 데이터 서버를 공략
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'Referer': 'https://finance.naver.com/research/company_list.naver'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
         success_count = 0
-        for page in range(1, pages + 1):
-            # 💡 HTML이 아니라 데이터를 직접 쏴주는 주소입니다.
-            url = f"https://finance.naver.com/research/company_list.naver?&page={page}"
+        # 컴퍼니가이드의 최신 리포트 요약 경로
+        url = "http://comp.fnguide.com/SVO2/ASP/SVD_Report_Summary.asp"
+        
+        try:
+            res = requests.get(url, headers=headers, timeout=20)
+            res.encoding = 'utf-8'
             
-            try:
-                res = requests.get(url, headers=headers, timeout=15)
-                # 💡 이번엔 '단순 텍스트'로 긁어서 종목코드 6자리와 이름을 강제로 찾아냅니다.
-                import re
-                # <a href="company_read.naver?nid=65432&page=1&itemCode=005930" class="stock_item">삼성전자</a>
-                matches = re.findall(r'itemCode=(\d{6})".*?>(.*?)</a>.*?<a href="company_read.*?>(.*?)</a>', res.text, re.DOTALL)
+            # 정규식으로 종목명, 코드, 목표가, 증권사를 통째로 낚아챕니다.
+            # 💡 패턴: 종목명(코드), 제목, 목표가, 투자의견, 증권사, 날짜 순
+            items = re.findall(r'<tr.*?>.*?<span.*?>(.*?)</span>.*?<span.*?>(.*?)</span>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>.*?<td.*?>(.*?)</td>', res.text, re.DOTALL)
+            
+            for item in items:
+                # 데이터 매핑 (사이트 구조에 따라 인덱스 조정)
+                raw_name_code = item[0] # 예: 삼성전자(005930)
+                title = item[1]
+                target_price = int(item[2].replace(',', '')) if item[2].replace(',', '').isdigit() else 0
+                source = item[4]
+                report_date = item[6]
                 
-                for match in matches:
-                    stock_code = match[0]
-                    stock_name = match[1].strip()
-                    title = match[2].strip()
+                code_match = re.search(r'\((\d{6})\)', raw_name_code)
+                if code_match:
+                    stock_code = code_match.group(1)
+                    stock_name = raw_name_code.split('(')[0]
                     
-                    # 💡 데이터가 있다면 저장
-                    if stock_code:
-                        cur.execute('''
-                            INSERT INTO reports (report_date, stock_code, stock_name, target_price, expert_name, source_name, title, report_source) 
-                            VALUES (date('now'), ?, ?, 0, '전문가', '증권사', ?, 'Naver_API')
-                        ''', (stock_code, stock_name, title))
-                        success_count += 1
-                
-                conn.commit()
-                print(f"✔ API {page}p 완료 (누적 {success_count}건)")
-                time.sleep(0.5)
-            except:
-                continue
-                
+                    cur.execute('''
+                        INSERT INTO reports (report_date, stock_code, stock_name, target_price, expert_name, source_name, title, report_source) 
+                        VALUES (?, ?, ?, ?, '전문가', ?, ?, 'FnGuide')
+                    ''', (report_date, stock_code, stock_name, target_price, source, title))
+                    success_count += 1
+            
+            conn.commit()
+            print(f"✅ FnGuide에서 {success_count}건 긴급 확보 성공!")
+            
+        except Exception as e:
+            print(f"❌ 접속 실패: {e}")
+            
         conn.close()
-        print(f"🏁 최종 {success_count}건 확보.")
