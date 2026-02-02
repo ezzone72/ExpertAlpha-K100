@@ -5,8 +5,8 @@ class NaverScraper:
     def __init__(self, db_path='expert_alpha_v3.db'):
         self.db_path = db_path
 
-    def fetch_data(self, pages=50):
-        print(f"📡 네이버 금융 리포트 [실전 분석형] 수집 시작...")
+    def fetch_data(self, pages=10):
+        print(f"📡 네이버 정밀 수집 시작...")
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         new_count = 0
@@ -23,32 +23,28 @@ class NaverScraper:
                     cols = row.select('td')
                     if len(cols) < 5: continue
                     
-                    # 1. 제목 및 종목코드 추출
+                    # 제목 및 종목코드
                     title_a = cols[0].select_one('a')
                     title = title_a.text.strip() if title_a else cols[0].text.strip()
                     
-                    # 💡 종목코드 추출 (링크 내 itemCode 파라미터 활용)
                     stock_code = ""
                     if title_a and 'href' in title_a.attrs:
                         code_search = re.search(r'itemCode=(\d{6})', title_a['href'])
                         stock_code = code_search.group(1) if code_search else ""
 
-                    # 2. 목표가 추출 (제목에서 '00,000원' 형태를 찾아냄)
+                    # 전문가, 증권사, 날짜 (버그 수정: 24.12.15 -> 2024-12-15)
+                    expert = cols[1].text.strip()
+                    source = cols[2].text.strip()
+                    raw_date = cols[4].text.strip()
+                    date = f"20{raw_date.replace('.', '-')}" if len(raw_date.strip()) == 8 else raw_date.replace('.', '-')
+
+                    # 목표가 (제목에서 숫자 추출)
                     target_price = 0
                     price_match = re.search(r'(\d{1,3}(,\d{3})+)', title)
                     if price_match:
                         target_price = int(price_match.group(1).replace(',', ''))
 
-                    # 3. 전문가, 증권사, 날짜 (날짜 버그 완전 박멸)
-                    expert = cols[1].text.strip()
-                    source = cols[2].text.strip()
-                    raw_date = cols[4].text.strip()
-                    date = f"20{raw_date.replace('.', '-')}" if len(raw_date) == 8 else raw_date.replace('.', '-')
-
-                    # 4. 중복 체크 후 저장
-                    cur.execute("SELECT id FROM reports WHERE title=? AND report_date=?", (title, date))
-                    if cur.fetchone(): continue
-                    
+                    # DB 저장 (순서 엄수: title, expert, source, date, code, price)
                     cur.execute('''
                         INSERT INTO reports (title, expert_name, source, report_date, stock_code, target_price) 
                         VALUES (?, ?, ?, ?, ?, ?)
@@ -56,7 +52,9 @@ class NaverScraper:
                     new_count += 1
                 
                 conn.commit()
-                print(f"📄 네이버 {page}p: {new_count}개 누적 (Code: {stock_code}, Price: {target_price})")
+                print(f"📄 네이버 {page}p: {new_count}개 저장 (최근: {stock_code})")
                 time.sleep(0.3)
-            except: break
+            except Exception as e:
+                print(f"❌ 에러: {e}")
+                break
         conn.close()
