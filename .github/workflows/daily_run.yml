@@ -4,7 +4,7 @@ on:
   schedule:
     # 한국 시간 밤 11:30 (UTC 14:30)
     - cron: '30 14 * * *'
-  workflow_dispatch: # 수동 실행 버튼 생성
+  workflow_dispatch: # 수동 실행 버튼
 
 jobs:
   build:
@@ -26,22 +26,23 @@ jobs:
 
     - name: Run Main Script
       run: |
-        # 루트 경로를 명시적으로 추가하여 임포트 에러 차단
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         python main.py --update-prices
 
     - name: Commit and Push DB change
       env:
-        TOKEN: ${{ secrets.MY_GH_TOKEN }}
+        # 소장님이 만드신 시크릿 이름 그대로 적용합니다
+        TOKEN: ${{ secrets.gh_ffnm_key }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        # 파일이 존재할 때만 추가
         if [ -f expert_alpha_v3.db ]; then
           git add expert_alpha_v3.db
           git commit -m "📈 Daily DB Update: $(date +'%Y-%m-%d')" || echo "No changes to commit"
-          git push https://x-access-token:${TOKEN}@github.com/ezzone72/ExpertAlpha-K100.git
+          
+          # 토큰을 주소에 태워서 문을 강제로 엽니다
+          git push https://x-access-token:${TOKEN}@github.com/ezzone72/ExpertAlpha-K100.git HEAD:main
         else
           echo "DB file not found, skipping push."
         fi
