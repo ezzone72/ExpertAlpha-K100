@@ -1,0 +1,37 @@
+name: ExpertAlpha-K100 Daily Scraper
+
+on:
+  schedule:
+    # 한국 시간 밤 11:30분 (UTC 기준은 14:30)
+    - cron: '30 14 * * *'
+  workflow_dispatch: # 수동으로도 실행 가능하게 버튼 생성
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 pandas yfinance pytz schedule
+
+    - name: Run Main Script
+      run: |
+        python main.py --update-prices
+
+    - name: Commit and Push DB change
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add expert_alpha_v3.db
+        git commit -m "📈 Daily DB Update: $(date +'%Y-%m-%d')" || echo "No changes to commit"
+        git push
