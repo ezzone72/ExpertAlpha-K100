@@ -63,10 +63,10 @@ def main():
     print(f"📡 {target_date} 리포트 수집 시작...")
     
     naver = NaverScraper(db_path=db_path)
-    naver.fetch_data(pages=5)
+    naver.fetch_data(pages=100)
 
     hankyung = HankyungScraper(db_path=db_path)
-    hankyung.fetch_data(pages=3)
+    hankyung.fetch_data(pages=100)
 
     # 4순위: 성적 기록
     print("📈 전문가 성적 계산 중...")
