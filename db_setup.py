@@ -3,10 +3,12 @@ import sqlite3
 def init_db(db_path='expert_alpha_v3.db'):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS reports") # 기존 꼬인 테이블 삭제
+    # 기존에 꼬인 테이블은 완전히 삭제하고 새로 만듭니다.
+    cur.execute("DROP TABLE IF EXISTS reports") 
+    
+    # 데이터가 들어갈 칸(Column)을 명확하게 정의합니다.
     cur.execute('''
         CREATE TABLE reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT,
             expert_name TEXT,
             source TEXT,
@@ -15,9 +17,12 @@ def init_db(db_path='expert_alpha_v3.db'):
             stock_name TEXT,
             target_price INTEGER DEFAULT 0,
             rating TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id INTEGER PRIMARY KEY AUTOINCREMENT
         )
     ''')
     conn.commit()
     conn.close()
-    print("✅ DB 테이블 정밀 리셋 완료!")
+    print("✅ DB 인프라 초기화 완료!")
+
+if __name__ == "__main__":
+    init_db()
