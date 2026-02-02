@@ -8,43 +8,42 @@ class HankyungScraper:
     def fetch_data(self, pages=50):
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        # 💡 브라우저인 척 속이는 헤더 보강
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'http://consensus.hankyung.com/'
+        }
         
         success_count = 0
         for page in range(1, pages + 1):
             url = f"http://consensus.hankyung.com/apps.analysis/analysis.list?&page={page}"
             try:
-                res = requests.get(url, headers=headers, timeout=15)
-                # 💡 한글 깨짐 방지
+                res = requests.get(url, headers=headers, timeout=20)
                 res.encoding = 'euc-kr' 
-                soup = BeautifulSoup(res.text, 'html.parser')
                 
-                # 💡 모든 테이블 행(tr)을 다 뒤집니다.
-                rows = soup.find_all('tr')
+                # 💡 BeautifulSoup이 못 읽을 것에 대비해 정규식으로 직접 타격
+                # <tr> 안의 <td>들을 덩어리째 낚아챕니다.
+                html = res.text
+                rows = re.findall(r'<tr.*?>(.*?)</tr>', html, re.DOTALL)
                 
-                for row in rows:
-                    cols = row.find_all('td')
-                    if len(cols) < 5: continue # 데이터가 있는 행만 골라냄
+                for row_html in rows:
+                    cols = re.findall(r'<td.*?>(.*?)</td>', row_html, re.DOTALL)
+                    if len(cols) < 5: continue
                     
-                    # 작성일 (예: 2026-02-02)
-                    report_date = cols[0].text.strip()
+                    # 태그 제거하고 순수 텍스트만 추출
+                    clean_cols = [re.sub(r'<.*?>', '', c).strip() for c in cols]
+                    
+                    report_date = clean_cols[0]
+                    # 날짜 형식 체크 (예: 2026-02-02)
                     if not re.match(r'\d{4}-\d{2}-\d{2}', report_date): continue
                     
-                    # 제목 및 종목정보
-                    title_td = cols[1]
-                    title_a = title_td.find('a')
-                    if not title_a: continue
-                    full_title = title_a.text.strip()
+                    full_title = clean_cols[1]
+                    target_price_raw = clean_cols[2].replace(',', '')
+                    target_price = int(re.search(r'\d+', target_price_raw).group()) if re.search(r'\d+', target_price_raw) else 0
+                    expert = clean_cols[3]
+                    source = clean_cols[4]
                     
-                    # 목표가
-                    tp_raw = cols[2].text.strip().replace(',', '')
-                    target_price = int(re.sub(r'[^0-9]', '', tp_raw)) if any(d.isdigit() for d in tp_raw) else 0
-                    
-                    # 전문가 및 증권사
-                    expert = cols[3].text.strip()
-                    source = cols[4].text.strip()
-                    
-                    # 종목코드 (제목에서 (000000) 형태 추출)
+                    # 종목코드 추출 (000000)
                     code_match = re.search(r'\((\d{6})\)', full_title)
                     if code_match:
                         stock_code = code_match.group(1)
@@ -58,7 +57,7 @@ class HankyungScraper:
                 
                 conn.commit()
                 print(f"✔ {page}페이지 완료 (현재 누적 {success_count}건)")
-                time.sleep(0.5)
+                time.sleep(0.7) # 서버 차단 방지용 딜레이 살짝 증가
             except Exception as e:
                 print(f"❌ {page}p 에러: {e}")
                 continue
