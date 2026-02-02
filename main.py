@@ -10,6 +10,7 @@ import database
 from scrapers.naver_scraper import NaverScraper
 from scrapers.hankyung_scraper import HankyungScraper
 from analysis.history_manager import HistoryManager
+# 파일 이름인 database.py와 폴더 이름인 database/가 충돌하므로 경로를 명확히 합니다.
 from database.fetch_stock_prices import update_prices
 
 def get_target_info():
