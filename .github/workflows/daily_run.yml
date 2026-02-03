@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4 pandas
+          pip install requests beautifulsoup4 pandas FinanceDataReader  # <-- 제가 이거 추가했습니다!
 
       - name: Run Factory
         run: python main.py
@@ -28,7 +28,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # 모든 DB 파일을 강제로 다 챙겨서 올립니다.
-          git add *.db 
-          git commit -m "🚀 [Final] 인간 지표 데이터 적재 완료" || echo "No changes to commit"
-          git push
+          git add *.db
+          # 변경사항이 있을 때만 커밋하고 푸시합니다.
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🚀 [ExpertAlpha] 시세 데이터 업데이트 완료" && git push)
