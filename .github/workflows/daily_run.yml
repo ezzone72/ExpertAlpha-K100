@@ -1,33 +1,28 @@
-name: ExpertAlpha Factory
+name: Daily Price Tracking
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 9 * * *' # 매일 아침 9시(KST) 자동 실행
+  workflow_dispatch: # 수동 실행 버튼
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install dependencies
         run: |
-          pip install requests beautifulsoup4 pandas FinanceDataReader  # <-- 제가 이거 추가했습니다!
-
-      - name: Run Factory
-        run: python main.py
-
-      - name: Commit and Push DB
+          pip install yfinance pandas
+      - name: Run Tracking Engine
+        run: python price_tracker.py  # 제가 위에서 드린 추적 코드를 파일로 저장해둔 것
+      - name: Commit and Push
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add *.db
-          # 변경사항이 있을 때만 커밋하고 푸시합니다.
-          git diff --quiet && git diff --staged --quiet || (git commit -m "🚀 [ExpertAlpha] 시세 데이터 업데이트 완료" && git push)
+          git config --global user.name "Jebanjang-AI"
+          git config --global user.email "jebanjang@expertalpha.com"
+          git add expert_alpha_v4.db expert_score_board.csv
+          git commit -m "Update daily performance scores"
+          git push
